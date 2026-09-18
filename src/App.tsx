@@ -56,18 +56,30 @@ export default function App() {
       } finally {
         setAuthChecked(true);
       }
+      let defaultVersion = "";
       try {
         const result = await invoke<MinecraftVersion[]>("get_versions");
         setVersions(result);
         const first = result.find((v) => v.installed) ?? result[0];
-        if (first) setSelected(first.id);
+        if (first) {
+          setSelected(first.id);
+          defaultVersion = first.id;
+        }
       } catch {
         setStatus("Błąd ładowania wersji");
       }
       try {
         const java = await invoke<string>("detect_java");
         if (java) setJavaPath(java);
-      } catch { /* non-fatal */ }
+      } catch {
+        // Brak Javy na PC — dociągnij przenośną w tle (jednorazowo, bez admina).
+        try {
+          if (defaultVersion) {
+            const java = await invoke<string>("ensure_java", { versionId: defaultVersion });
+            if (java) setJavaPath(java);
+          }
+        } catch { /* non-fatal — launch i tak spróbuje przy Graj */ }
+      }
     };
 
     void load();

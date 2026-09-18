@@ -1,6 +1,6 @@
 [package]
 name = "ambad-client"
-version = "1.0.0"
+version = "1.0.1"
 description = "Professional Minecraft Java Edition Launcher"
 authors = ["Embad"]
 edition = "2021"
@@ -31,5 +31,8 @@ rand = "0.8"
 base64 = "0.22"
 urlencoding = "2.1"
 open = "5.3"
+zip = "0.6"
+tar = "0.4"
+flate2 = "1.0"
 axum = { version = "0.7", features = ["query"] }
 chrono = { version = "0.4", features = ["serde"] }

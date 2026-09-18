@@ -625,6 +625,259 @@ async fn detect_java() -> Result<String, String> {
     Err("Nie znaleziono poprawnej instalacji Java".to_string())
 }
 
+/// Jaka major-Java jest wymagana dla danej wersji Minecraft:
+/// <=1.16 -> 8, 1.17-1.20.4 -> 17, >=1.20.5 -> 21.
+fn mc_java_major(version_id: &str) -> u8 {
+    let mut parts = version_id.split('.');
+    let major: u32 = parts.next().and_then(|v| v.parse().ok()).unwrap_or(1);
+    let minor: u32 = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let patch: u32 = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+
+    if major == 1 && minor <= 16 {
+        8
+    } else if major == 1 && (minor < 20 || (minor == 20 && patch < 5)) {
+        17
+    } else {
+        21
+    }
+}
+
+/// Major wersji Javy spod danej ścieżki (np. 8 / 17 / 21), None gdy nie da się ustalić.
+fn java_version_major(java_path: &str) -> Option<u32> {
+    let output = Command::new(java_path).arg("-version").output().ok()?;
+    let text = format!(
+        "{}\n{}",
+        String::from_utf8_lossy(&output.stdout),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    // format: openjdk version "21.0.8" ... albo: java version "1.8.0_451"
+    let quoted = text.split('"').nth(1)?;
+    let mut nums = quoted.split('.');
+    let first: u32 = nums.next()?.parse().ok()?;
+    if first == 1 {
+        nums.next()?.parse().ok()
+    } else {
+        Some(first)
+    }
+}
+
+fn managed_java_dir(major: u8) -> Result<PathBuf, String> {
+    let base = dirs::data_dir()
+        .ok_or_else(|| "Nie można znaleźć katalogu danych użytkownika".to_string())?;
+    Ok(base.join("AmbadClient").join("java").join(major.to_string()))
+}
+
+fn java_exe_name() -> &'static str {
+    if cfg!(target_os = "windows") {
+        "java.exe"
+    } else {
+        "java"
+    }
+}
+
+/// Szuka bin/java wprost w katalogu albo w jednym podkatalogu (tak pakuje Adoptium).
+fn find_java_in(dir: &Path) -> Option<PathBuf> {
+    let direct = dir.join("bin").join(java_exe_name());
+    if direct.is_file() {
+        return Some(direct);
+    }
+    if let Ok(entries) = fs::read_dir(dir) {
+        for entry in entries.flatten() {
+            let candidate = entry.path().join("bin").join(java_exe_name());
+            if candidate.is_file() {
+                return Some(candidate);
+            }
+        }
+    }
+    None
+}
+
+fn adoptium_target() -> Result<(&'static str, &'static str, bool), String> {
+    let os = if cfg!(target_os = "windows") {
+        "windows"
+    } else if cfg!(target_os = "macos") {
+        "mac"
+    } else if cfg!(target_os = "linux") {
+        "linux"
+    } else {
+        return Err("Automatyczna instalacja Javy nie obsługuje tego systemu".to_string());
+    };
+    let arch = match std::env::consts::ARCH {
+        "x86_64" => "x64",
+        "aarch64" => "aarch64",
+        other => {
+            return Err(format!(
+                "Automatyczna instalacja Javy nie obsługuje architektury {other}"
+            ))
+        }
+    };
+    Ok((os, arch, os == "windows"))
+}
+
+fn adoptium_url(major: u8, os: &str, arch: &str) -> String {
+    format!("https://api.adoptium.net/v3/binary/latest/{major}/ga/{os}/{arch}/jre/hotspot/normal/eclipse")
+}
+
+fn extract_archive(archive: &Path, dest: &Path, is_zip: bool) -> Result<(), String> {
+    if is_zip {
+        let file = fs::File::open(archive)
+            .map_err(|e| format!("Nie można otworzyć paczki Javy: {e}"))?;
+        let mut zip = zip::ZipArchive::new(file)
+            .map_err(|e| format!("Uszkodzona paczka Javy: {e}"))?;
+        zip.extract(dest)
+            .map_err(|e| format!("Nie można wypakować Javy: {e}"))?;
+    } else {
+        let file = fs::File::open(archive)
+            .map_err(|e| format!("Nie można otworzyć paczki Javy: {e}"))?;
+        let gz = flate2::read::GzDecoder::new(file);
+        let mut tar = tar::Archive::new(gz);
+        tar.unpack(dest)
+            .map_err(|e| format!("Nie można wypakować Javy: {e}"))?;
+    }
+    Ok(())
+}
+
+async fn download_adoptium_java(major: u8) -> Result<PathBuf, String> {
+    let (os, arch, is_zip) = adoptium_target()?;
+    let url = adoptium_url(major, os, arch);
+    let dest = managed_java_dir(major)?;
+
+    let _ = fs::remove_dir_all(&dest);
+    fs::create_dir_all(&dest).map_err(|e| format!("Nie można utworzyć katalogu Javy: {e}"))?;
+
+    let tmp = dest.with_extension(if is_zip { "zip.part" } else { "tar.gz.part" });
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(600))
+        .build()
+        .map_err(|e| format!("Nie można przygotować pobierania Javy: {e}"))?;
+    let mut response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Nie można pobrać Javy {major} (sprawdź połączenie z internetem): {e}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Serwer Javy zwrócił HTTP {}",
+            response.status().as_u16()
+        ));
+    }
+    let mut file = tokio::fs::File::create(&tmp)
+        .await
+        .map_err(|e| format!("Nie można zapisać paczki Javy: {e}"))?;
+    use tokio::io::AsyncWriteExt;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Pobieranie Javy przerwane: {e}"))?
+    {
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("Zapis paczki Javy nieudany: {e}"))?;
+    }
+    file.flush().await.ok();
+    drop(file);
+
+    let extract_to = dest.join("_new");
+    let _ = fs::remove_dir_all(&extract_to);
+    fs::create_dir_all(&extract_to)
+        .map_err(|e| format!("Nie można utworzyć katalogu Javy: {e}"))?;
+    if let Err(e) = extract_archive(&tmp, &extract_to, is_zip) {
+        let _ = fs::remove_dir_all(&extract_to);
+        let _ = fs::remove_file(&tmp);
+        return Err(e);
+    }
+    let _ = fs::remove_file(&tmp);
+
+    // Adoptium pakuje jeden katalog jdk-...-jre — przenieś jego zawartość wprost do dest.
+    let entries: Vec<_> = fs::read_dir(&extract_to)
+        .map_err(|e| format!("Nie można odczytać paczki Javy: {e}"))?
+        .flatten()
+        .collect();
+    if entries.len() == 1 && entries[0].path().is_dir() {
+        let inner = entries[0].path();
+        fs::remove_dir_all(&dest).ok();
+        fs::rename(&inner, &dest).map_err(|e| format!("Nie można zainstalować Javy: {e}"))?;
+        let _ = fs::remove_dir_all(&extract_to);
+    } else {
+        fs::remove_dir_all(&dest).ok();
+        fs::rename(&extract_to, &dest).map_err(|e| format!("Nie można zainstalować Javy: {e}"))?;
+    }
+
+    #[cfg(unix)]
+    if let Some(java) = find_java_in(&dest) {
+        use std::os::unix::fs::PermissionsExt;
+        if let Ok(meta) = fs::metadata(&java) {
+            let mut perm = meta.permissions();
+            perm.set_mode(0o755);
+            let _ = fs::set_permissions(&java, perm);
+        }
+    }
+
+    find_java_in(&dest).ok_or_else(|| "Paczka Javy nie zawiera bin/java".to_string())
+}
+
+/// Zwraca działającą Javę dla danej wersji MC: własna (pobrana) > systemowa, pobiera gdy brak.
+async fn ensure_java_inner(version_id: &str) -> Result<String, String> {
+    let required = mc_java_major(version_id);
+
+    // 1. własna, wcześniej pobrana
+    if let Ok(dir) = managed_java_dir(required) {
+        if let Some(java) = find_java_in(&dir) {
+            let path = java.to_string_lossy().into_owned();
+            if validate_java_path(&path).is_ok() {
+                return Ok(path);
+            }
+        }
+    }
+
+    // 2. systemowa, o ile wystarczająco nowa dla tej wersji MC
+    if let Ok(system) = detect_java().await {
+        let fresh_enough = java_version_major(&system)
+            .map(|v| v >= required as u32)
+            .unwrap_or(true);
+        if fresh_enough {
+            return Ok(system);
+        }
+    }
+
+    // 3. pobierz przenośną (bez uprawnień admina, do folderu launchera)
+    let java = download_adoptium_java(required).await?;
+    let path = java.to_string_lossy().into_owned();
+    validate_java_path(&path)?;
+    Ok(path)
+}
+
+#[command]
+async fn ensure_java(version_id: String) -> Result<String, String> {
+    validate_version_id(&version_id)?;
+    ensure_java_inner(&version_id).await
+}
+
+#[cfg(test)]
+mod java_tests {
+    use super::*;
+
+    #[test]
+    fn java_major_mapping() {
+        assert_eq!(mc_java_major("1.8.9"), 8);
+        assert_eq!(mc_java_major("1.12.2"), 8);
+        assert_eq!(mc_java_major("1.16.5"), 8);
+        assert_eq!(mc_java_major("1.17.1"), 17);
+        assert_eq!(mc_java_major("1.20.4"), 17);
+        assert_eq!(mc_java_major("1.20.5"), 21);
+        assert_eq!(mc_java_major("1.21"), 21);
+        assert_eq!(mc_java_major("1.21.4"), 21);
+    }
+
+    #[test]
+    fn adoptium_url_shape() {
+        let url = adoptium_url(21, "windows", "x64");
+        assert!(url.starts_with(
+            "https://api.adoptium.net/v3/binary/latest/21/ga/windows/x64/jre/"
+        ));
+    }
+}
+
 #[command]
 async fn get_minecraft_profile() -> Result<Option<MinecraftProfile>, String> {
     match load_auth() {
@@ -901,7 +1154,11 @@ async fn ensure_version_installed(version_id: &str) -> Result<(), String> {
 async fn launch_minecraft(options: LaunchOptions) -> Result<(), String> {
     validate_version_id(&options.version_id)?;
 
-    let java_path = validate_java_path(&options.java_path)?;
+    // Brak Javy na PC albo za stara? — dociągnij przenośną automatycznie zamiast rzucać błędem.
+    let java_path = match validate_java_path(&options.java_path) {
+        Ok(path) => path,
+        Err(_) => ensure_java_inner(&options.version_id).await?,
+    };
 
     let max_memory = options.max_memory.clamp(512, 32768);
     let min_memory = options.min_memory.clamp(512, max_memory);
@@ -1211,6 +1468,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             get_versions,
             detect_java,
+            ensure_java,
             launch_minecraft,
             microsoft_login,
             microsoft_logout,
