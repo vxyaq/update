@@ -1,0 +1,56 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Ambad Client",
+  "version": "1.0.0",
+  "identifier": "com.ambad.client",
+  "build": {
+    "beforeDevCommand": "npm run dev",
+    "devUrl": "http://localhost:1420",
+    "beforeBuildCommand": "npm run build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "Ambad Client",
+        "label": "main",
+        "width": 1000,
+        "height": 600,
+        "minWidth": 800,
+        "minHeight": 500,
+        "center": true,
+        "resizable": true,
+        "decorations": false,
+        "transparent": true,
+        "backgroundColor": "#00000000",
+        "shadow": true,
+        "visible": true
+      }
+    ],
+    "security": {
+      "csp": "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' asset: https://asset.localhost; font-src 'self'; connect-src https://launchermeta.mojang.com https://piston-meta.mojang.com https://api.minecraftservices.com https://login.microsoftonline.com https://user.auth.xboxlive.com https://xsts.auth.xboxlive.com https://libraries.minecraft.net https://resources.download.minecraft.net https://github.com https://objects.githubusercontent.com https://release-assets.githubusercontent.com; object-src 'none'; base-uri 'none'; frame-ancestors 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": false,
+      "endpoints": [
+        "https://github.com/ah1ks/ambad/releases/latest/download/latest.json"
+      ],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEZDNTAwNEUzRDk2RkVGMTkKUldRWjcyL1o0d1JRL0tKQXJtQUVkWUJyVWpMNGdHQ0xPZmxsWWxOZmpIV0J2Rm5VeG1ycjRUbXMK"
+    }
+  }
+}

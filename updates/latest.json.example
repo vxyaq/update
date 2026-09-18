@@ -1,0 +1,23 @@
+{
+  "version": "1.0.1",
+  "notes": "Poprawki błędów + szybsze uruchamianie",
+  "pub_date": "2026-09-18T00:00:00.000Z",
+  "platforms": {
+    "windows-x86_64": {
+      "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
+      "url": "https://updates.ambad.pl/ambad-client_1.0.1_x64-setup.nsis.zip"
+    },
+    "linux-x86_64": {
+      "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
+      "url": "https://updates.ambad.pl/ambad-client_1.0.1_amd64.AppImage.tar.gz"
+    },
+    "darwin-x86_64": {
+      "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
+      "url": "https://updates.ambad.pl/ambad-client_1.0.1_x64.app.tar.gz"
+    },
+    "darwin-aarch64": {
+      "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
+      "url": "https://updates.ambad.pl/ambad-client_1.0.1_aarch64.app.tar.gz"
+    }
+  }
+}
