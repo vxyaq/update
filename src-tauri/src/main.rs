@@ -1417,6 +1417,11 @@ fn open_mods_folder() -> Result<(), String> {
 }
 
 #[command]
+fn get_app_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+#[command]
 fn get_minecraft_dir() -> Result<String, String> {
     Ok(minecraft_dir()?.to_string_lossy().into_owned())
 }
@@ -1477,6 +1482,7 @@ fn main() {
             get_mods,
             open_mods_folder,
             get_minecraft_dir,
+            get_app_version,
             stop_minecraft,
             is_minecraft_running
         ])
