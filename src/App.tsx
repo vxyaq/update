@@ -245,6 +245,11 @@ export default function App() {
               </span>
             </div>
           )}
+          {updateStatus.phase === "error" && (
+            <div className="update-banner" style={{ borderColor: "rgba(255,120,120,0.35)", background: "rgba(50,20,20,0.75)", color: "rgba(255,200,200,0.9)" }}>
+              <span>Update: {updateStatus.message}</span>
+            </div>
+          )}
           {status && <div className="error-msg">{status}</div>}
 
           {!running ? (
