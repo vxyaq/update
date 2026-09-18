@@ -31,14 +31,11 @@ export default function App() {
   const [view, setView] = useState<"home" | "profile" | "settings">("home");
   const [user, setUser] = useState<DisplayUser | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [appVersion, setAppVersion] = useState("");
   const [updateStatus, setUpdateStatus] = useState<UpdateStatus>({ phase: "idle" });
 
   useEffect(() => {
     // Cichy auto-update w tle — nie blokuje startu apki
     void checkForUpdatesSilently(setUpdateStatus);
-    // Numer wersji apki do rogu (żeby było widać, czy update się zainstalował)
-    void invoke<string>("get_app_version").then(setAppVersion).catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -221,7 +218,6 @@ export default function App() {
       <main className="main">
         {/* lewa strona — info o wersji */}
         <div className="side-info">
-          {appVersion && <div className="side-label">Ambad v{appVersion}</div>}
           {selected && (
             <>
               <div className="side-label">Minecraft Java</div>
