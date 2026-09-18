@@ -1,6 +1,6 @@
-# ambad
+# dash-client
 
-Ambad Client — launcher Minecraft Java Edition (Tauri v2 + React).
+Dash Client — launcher Minecraft Java Edition (Tauri v2 + React).
 
 ## Build lokalny
 

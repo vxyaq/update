@@ -1,8 +1,8 @@
 @echo off
-REM Ambad Client - build instalki Windows (.exe + .msi) + pliki do auto-update
+REM Dash Client - build instalki Windows (.exe + .msi) + pliki do auto-update
 REM Wymaga: Node.js LTS (https://nodejs.org) i Rust (https://rustup.rs)
-REM Klucz prywatny (ambad.key) poloz obok tego pliku LUB ustaw zmienna srodowiskowa
-REM   set TAURI_SIGNING_PRIVATE_KEY_PATH=C:\sciezka\do\ambad.key
+REM Klucz prywatny (dash.key) poloz obok tego pliku LUB ustaw zmienna srodowiskowa
+REM   set TAURI_SIGNING_PRIVATE_KEY_PATH=C:\sciezka\do\dash.key
 REM Bez klucza powstanie zwykly instalator (do recznej instalacji, bez auto-update).
 
 cd /d "%~dp0"
@@ -10,12 +10,12 @@ cd /d "%~dp0"
 where node >nul 2>nul || (echo [BLAD] Brak Node.js - zainstaluj z https://nodejs.org && pause && exit /b 1)
 where cargo >nul 2>nul || (echo [BLAD] Brak Rust - zainstaluj z https://rustup.rs && pause && exit /b 1)
 
-if exist "ambad.key" (
-  set TAURI_SIGNING_PRIVATE_KEY_PATH=%~dp0ambad.key
+if exist "dash.key" (
+  set TAURI_SIGNING_PRIVATE_KEY_PATH=%~dp0dash.key
   set TAURI_SIGNING_PRIVATE_KEY_PASSWORD=
-  echo [OK] Znaleziono ambad.key - build bedzie podpisany (auto-update zadziala).
+  echo [OK] Znaleziono dash.key - build bedzie podpisany (auto-update zadziala).
 ) else (
-  echo [INFO] Brak ambad.key obok pliku - build bez podpisu (tylko reczna instalacja).
+  echo [INFO] Brak dash.key obok pliku - build bez podpisu (tylko reczna instalacja).
 )
 
 call npm install || (echo [BLAD] npm install sie nie powiodlo && pause && exit /b 1)

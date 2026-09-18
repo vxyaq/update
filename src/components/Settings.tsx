@@ -29,7 +29,7 @@ const MAX_WIDTH = 3840
 const MIN_HEIGHT = 480
 const MAX_HEIGHT = 2160
 
-const STORAGE_KEY = "ambad-client-settings"
+const STORAGE_KEY = "dash-client-settings"
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max)

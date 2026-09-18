@@ -82,7 +82,7 @@ fn version_gte_1_8_8(id: &str) -> bool {
 
 fn minecraft_dir() -> Result<PathBuf, String> {
     let base = dirs::data_dir().ok_or_else(|| "Nie można znaleźć katalogu danych użytkownika".to_string())?;
-    let dir = base.join("AmbadClient").join("minecraft");
+    let dir = base.join("DashClient").join("minecraft");
     // Create own folder structure: versions / mods / assets / libraries / settings.json
     std::fs::create_dir_all(dir.join("versions")).ok();
     std::fs::create_dir_all(dir.join("mods")).ok();
@@ -103,7 +103,7 @@ fn mc_process() -> Arc<Mutex<Option<std::process::Child>>> {
 
 fn auth_file() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(std::env::temp_dir);
-    let dir = base.join("AmbadClient");
+    let dir = base.join("DashClient");
 
     let _ = fs::create_dir_all(&dir);
 
@@ -664,7 +664,7 @@ fn java_version_major(java_path: &str) -> Option<u32> {
 fn managed_java_dir(major: u8) -> Result<PathBuf, String> {
     let base = dirs::data_dir()
         .ok_or_else(|| "Nie można znaleźć katalogu danych użytkownika".to_string())?;
-    Ok(base.join("AmbadClient").join("java").join(major.to_string()))
+    Ok(base.join("DashClient").join("java").join(major.to_string()))
 }
 
 fn java_exe_name() -> &'static str {
@@ -1304,9 +1304,9 @@ async fn launch_minecraft(options: LaunchOptions) -> Result<(), String> {
         .as_str()
         .unwrap_or(&options.version_id);
 
-    // Brand widoczny w F3 jak u Lunara — zamiast "release" pokaże "AMBAD"
+    // Brand widoczny w F3 jak u Lunara — zamiast "release" pokaże "DASH"
     let _vanilla_type = info["type"].as_str().unwrap_or("release");
-    let version_type = "AMBAD";
+    let version_type = "DASH";
 
     let natives_path = natives_dir.to_string_lossy().into_owned();
 
@@ -1317,7 +1317,7 @@ async fn launch_minecraft(options: LaunchOptions) -> Result<(), String> {
         "-XX:MaxGCPauseMillis=200".to_string(),
         "-XX:+DisableExplicitGC".to_string(),
         "-Dfile.encoding=UTF-8".to_string(),
-        "-Dminecraft.launcher.brand=AMBAD".to_string(),
+        "-Dminecraft.launcher.brand=DASH".to_string(),
         "-Dminecraft.launcher.version=1.0.0".to_string(),
         format!("-Djava.library.path={natives_path}"),
         "-cp".to_string(),
@@ -1356,7 +1356,7 @@ async fn launch_minecraft(options: LaunchOptions) -> Result<(), String> {
         args.push(options.height.to_string());
     }
 
-    // — Własny Minecraft: gameDir = AmbadClient/minecraft, nie systemowy .minecraft
+    // — Własny Minecraft: gameDir = DashClient/minecraft, nie systemowy .minecraft
     // Blokada wielokrotnego odpalania — jeśli już działa, zwróć błąd
     {
         let proc = mc_process();
@@ -1375,7 +1375,10 @@ async fn launch_minecraft(options: LaunchOptions) -> Result<(), String> {
         .spawn()
         .map_err(|e| format!("Nie można uruchomić Minecraft: {e}"))?;
 
-    // zapisz child żeby umożliwić STOP i blokadę Graj (własny Minecraft z AmbadClient/minecraft)
+    // Tytuł okna gry: "Dash Client <wersja>" zamiast "Minecraft <wersja>".
+    spawn_title_watcher(child.id(), format!("Dash Client {}", options.version_id));
+
+    // zapisz child żeby umożliwić STOP i blokadę Graj (własny Minecraft z DashClient/minecraft)
     {
         let proc = mc_process();
         let mut guard = proc.lock().unwrap();
@@ -1461,6 +1464,56 @@ fn is_minecraft_running() -> Result<bool, String> {
         Ok(false)
     }
 }
+
+/// Podmienia tytuł okna gry na "Dash Client <wersja>" (Windows).
+/// Minecraft sam ustawia "Minecraft X" przy starcie, więc pilnujemy tytułu wątkiem w tle.
+#[cfg(target_os = "windows")]
+fn spawn_title_watcher(pid: u32, title: String) {
+    std::thread::spawn(move || {
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        use winapi::shared::minwindef::{BOOL, FALSE, LPARAM, TRUE};
+        use winapi::shared::windef::HWND;
+        use winapi::um::winuser::{
+            EnumWindows, GetWindowThreadProcessId, IsWindowVisible, SetWindowTextW,
+        };
+
+        static FOUND: AtomicUsize = AtomicUsize::new(0);
+
+        unsafe extern "system" fn enum_cb(hwnd: HWND, lparam: LPARAM) -> BOOL {
+            let mut wpid: u32 = 0;
+            GetWindowThreadProcessId(hwnd, &mut wpid);
+            if wpid == lparam as u32 && IsWindowVisible(hwnd) != 0 {
+                FOUND.store(hwnd as usize, Ordering::Relaxed);
+                return FALSE;
+            }
+            TRUE
+        }
+
+        let wide: Vec<u16> = title.encode_utf16().chain(std::iter::once(0)).collect();
+        // Okno powstaje z opóźnieniem, a gra potrafi nadpisać tytuł — pilnuj ~2 min.
+        for _ in 0..240 {
+            FOUND.store(0, Ordering::Relaxed);
+            unsafe {
+                EnumWindows(Some(enum_cb), pid as LPARAM);
+            }
+            let raw = FOUND.load(Ordering::Relaxed);
+            if raw != 0 {
+                let hwnd = raw as HWND;
+                for _ in 0..12 {
+                    unsafe {
+                        SetWindowTextW(hwnd, wide.as_ptr());
+                    }
+                    std::thread::sleep(Duration::from_secs(10));
+                }
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+    });
+}
+
+#[cfg(not(target_os = "windows"))]
+fn spawn_title_watcher(_pid: u32, _title: String) {}
 
 fn main() {
     tauri::Builder::default()

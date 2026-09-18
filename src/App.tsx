@@ -39,7 +39,7 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    localStorage.removeItem("embad_user");
+    localStorage.removeItem("dash_user");
 
     const isTauri = () => !!(window as any).__TAURI_INTERNALS__;
 
@@ -84,7 +84,7 @@ export default function App() {
 
     void load();
 
-    // poll czy własny Minecraft z AmbadClient/minecraft jest uruchomiony — blokuje Graj i pokazuje STOP
+    // poll czy własny Minecraft z DashClient/minecraft jest uruchomiony — blokuje Graj i pokazuje STOP
     const interval = setInterval(async () => {
       try {
         const r = await invoke<boolean>("is_minecraft_running");
@@ -98,7 +98,7 @@ export default function App() {
   const launch = async () => {
     if (!isLogged || !selected || launching || running) return;
     setLaunching(true);
-    setStatus("Uruchamianie własnego Minecraft z AmbadClient/minecraft...");
+    setStatus("Uruchamianie własnego Minecraft z DashClient/minecraft...");
     try {
       await invoke("launch_minecraft", {
         options: {
@@ -216,15 +216,8 @@ export default function App() {
 
       {/* main */}
       <main className="main">
-        {/* lewa strona — info o wersji */}
-        <div className="side-info">
-          {selected && (
-            <>
-              <div className="side-label">Minecraft Java</div>
-              <div className="side-version">{selected}</div>
-            </>
-          )}
-        </div>
+        {/* lewa kolumna pusta — balansuje siatkę (wersja widoczna po prawej w selektorze) */}
+        <div className="side-info" />
 
         {/* środek — play / stop */}
         <div className="play-area">

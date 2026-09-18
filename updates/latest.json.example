@@ -5,19 +5,19 @@
   "platforms": {
     "windows-x86_64": {
       "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
-      "url": "https://updates.ambad.pl/ambad-client_1.0.1_x64-setup.nsis.zip"
+      "url": "https://github.com/vxyaq/update/releases/latest/download/dash-client_1.0.4_x64-setup.nsis.zip"
     },
     "linux-x86_64": {
       "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
-      "url": "https://updates.ambad.pl/ambad-client_1.0.1_amd64.AppImage.tar.gz"
+      "url": "https://github.com/vxyaq/update/releases/latest/download/dash-client_1.0.4_amd64.AppImage.tar.gz"
     },
     "darwin-x86_64": {
       "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
-      "url": "https://updates.ambad.pl/ambad-client_1.0.1_x64.app.tar.gz"
+      "url": "https://github.com/vxyaq/update/releases/latest/download/dash-client_1.0.4_x64.app.tar.gz"
     },
     "darwin-aarch64": {
       "signature": "WSTAW_ZAWARTOSC_PLIKU_.sig",
-      "url": "https://updates.ambad.pl/ambad-client_1.0.1_aarch64.app.tar.gz"
+      "url": "https://github.com/vxyaq/update/releases/latest/download/dash-client_1.0.4_aarch64.app.tar.gz"
     }
   }
 }

@@ -2,16 +2,16 @@
  * Generuje latest.json dla Tauri Updater v2 ze zbudowanych artefaktów.
  *
  * Użycie:
- *   1. Ustaw klucze (jednorazowo):  npm run tauri signer generate -w ~/.tauri/ambad.key
+ *   1. Ustaw klucze (jednorazowo):  npm run tauri signer generate -w ~/.tauri/dash.key
  *      -> pubkey wklej do src-tauri/tauri.conf.json > plugins.updater.pubkey
  *      -> private key ustaw jako env TAURI_SIGNING_PRIVATE_KEY przy buildzie
  *   2. Podbij wersję w package.json + src-tauri/tauri.conf.json + src-tauri/Cargo.toml
  *   3. Zbuduj: TAURI_SIGNING_PRIVATE_KEY="..." npx tauri build
  *      (albo na CI — artefakty .zip/.tar.gz + .sig lądują w src-tauri/target/release/bundle/)
- *   4. Wygeneruj latest.json: node scripts/publish-update.mjs --base https://updates.ambad.pl --notes "Poprawki"
+ *   4. Wygeneruj latest.json: node scripts/publish-update.mjs --base https://github.com/vxyaq/update/releases/latest/download --notes "Poprawki"
  *      -> pliki lądują w dist-updates/
  *   5. Wgraj zawartość dist-updates/ na hosting tak żeby
- *      https://updates.ambad.pl/latest.json działał.
+  *      https://github.com/vxyaq/update/releases/latest/download/latest.json działał.
  *
  * Wspiera: windows (nsis, msi), linux (appimage, deb), macos (app).
  */
@@ -24,7 +24,7 @@ const getArg = (name, fallback = "") => {
   return i >= 0 && args[i + 1] ? args[i + 1] : fallback;
 };
 
-const BASE_URL = (getArg("--base", process.env.UPDATE_BASE_URL || "https://updates.ambad.pl")).replace(/\/$/, "");
+const BASE_URL = (getArg("--base", process.env.UPDATE_BASE_URL || "https://github.com/vxyaq/update/releases/latest/download")).replace(/\/$/, "");
 const NOTES = getArg("--notes", process.env.UPDATE_NOTES || "");
 const OUT_DIR = getArg("--out", "dist-updates");
 const BUNDLE_DIR = "src-tauri/target/release/bundle";

@@ -40,8 +40,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: "Ambad Client ${{ github.ref_name }}"
-          releaseBody: "Ambad Client — instalator Windows (.exe NSIS + .msi). Auto-update pobierze ja sam."
+          releaseName: "Dash Client ${{ github.ref_name }}"
+          releaseBody: "Dash Client — instalator Windows (.exe NSIS + .msi). Auto-update pobierze ja sam."
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
