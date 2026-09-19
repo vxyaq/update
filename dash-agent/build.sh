@@ -13,9 +13,14 @@ if [ ! -f lib/asm.jar ]; then
   curl -sSL -o lib/asm.jar "$ASM_URL"
 fi
 
-# logo launchera -> tekstura menu
-if [ -f ../public/icon.webp ]; then
-  python3 -c "from PIL import Image; Image.open('../public/icon.webp').convert('RGBA').save('assets/dash/logo.png')"
+# logo launchera -> tekstura menu (logo.png jest w repo; konwersja tylko gdy go brak)
+if [ ! -f assets/dash/logo.png ]; then
+  if [ -f ../public/icon.webp ]; then
+    python3 -c "from PIL import Image; Image.open('../public/icon.webp').convert('RGBA').save('assets/dash/logo.png')" \
+      || { echo "[dash-agent] BLAD: brak modulu PIL a logo.png nie istnieje"; exit 1; }
+  else
+    echo "[dash-agent] BLAD: brak assets/dash/logo.png i ../public/icon.webp"; exit 1;
+  fi
 fi
 
 echo "[dash-agent] kompilacja stubs (sygnatury Mojmap, tylko do javac)..."
