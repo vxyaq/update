@@ -33,6 +33,18 @@ jobs:
       - name: install frontend dependencies
         run: npm ci
 
+      - name: setup JDK 21 (build dash-agent)
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+
+      - name: build dash-agent.jar
+        shell: bash
+        run: |
+          bash dash-agent/build.sh
+          mv dash-agent/dash-agent.jar "dash-agent/dash-agent-${GITHUB_REF_NAME#v}.jar"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -45,3 +57,11 @@ jobs:
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}
+
+      - name: upload dash-agent.jar to release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: dash-agent/dash-agent-*.jar
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

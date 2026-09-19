@@ -3,6 +3,9 @@ node_modules/
 dist/
 dist-updates/
 src-tauri/target/
+dash-agent/lib/
+dash-agent/build/
+dash-agent/dash-agent*.jar
 
 # lokalne paczki binarne (idą do GitHub Releases, nie do repo)
 *.AppImage

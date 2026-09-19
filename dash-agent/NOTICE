@@ -1,0 +1,10 @@
+DashAgent — moduły .java do Dash Client.
+
+Panorama (assets/dash/panorama/*.png) i layout menu na bazie:
+  Hobbyshop/Lunar-Client-Main-Menu (MIT License, Copyright (c) 2022 Hobbyshop)
+  https://github.com/Hobbyshop/Lunar-Client-Main-Menu
+Kod menu napisany od nowa pod silnik 1.20.5+ (Mojmap), tekstury jw.
+
+Logo (assets/dash/logo.png) — własne, Dash Client.
+
+ASM (org.ow2.asm, wbudowany w jar) — BSD-3-Clause, https://asm.ow2.io/

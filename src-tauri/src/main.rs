@@ -853,6 +853,72 @@ async fn ensure_java(version_id: String) -> Result<String, String> {
     ensure_java_inner(&version_id).await
 }
 
+/// Czy DashAgent (moduły .java) wspiera daną wersję MC — kształt API TitleScreen/Gui: 1.20.5+.
+fn agent_supported(version_id: &str) -> bool {
+    let mut parts = version_id.split('.');
+    let major: u32 = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let minor: u32 = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    let patch: u32 = parts.next().and_then(|v| v.parse().ok()).unwrap_or(0);
+    major > 1 || (major == 1 && (minor > 20 || (minor == 20 && patch >= 5)))
+}
+
+fn agent_jar_path() -> Result<PathBuf, String> {
+    let base = dirs::data_dir()
+        .ok_or_else(|| "Nie można znaleźć katalogu danych użytkownika".to_string())?;
+    Ok(base
+        .join("DashClient")
+        .join("agent")
+        .join(format!("dash-agent-{}.jar", env!("CARGO_PKG_VERSION"))))
+}
+
+/// Pobiera dash-agent.jar z Release (cache per wersja launchera).
+async fn ensure_agent_jar() -> Result<PathBuf, String> {
+    let dest = agent_jar_path()?;
+    if dest.is_file() {
+        return Ok(dest);
+    }
+    if let Some(parent) = dest.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Nie można utworzyć katalogu agenta: {e}"))?;
+    }
+    let url = format!(
+        "https://github.com/vxyaq/update/releases/latest/download/dash-agent-{}.jar",
+        env!("CARGO_PKG_VERSION")
+    );
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(180))
+        .build()
+        .map_err(|e| format!("Nie można przygotować pobierania modułów Dash: {e}"))?;
+    let mut response = client
+        .get(&url)
+        .send()
+        .await
+        .map_err(|e| format!("Nie można pobrać modułów Dash (sprawdź internet): {e}"))?;
+    if !response.status().is_success() {
+        return Err(format!(
+            "Serwer modułów Dash zwrócił HTTP {}",
+            response.status().as_u16()
+        ));
+    }
+    let tmp = dest.with_extension("jar.part");
+    let mut file = tokio::fs::File::create(&tmp)
+        .await
+        .map_err(|e| format!("Nie można zapisać modułów Dash: {e}"))?;
+    use tokio::io::AsyncWriteExt;
+    while let Some(chunk) = response
+        .chunk()
+        .await
+        .map_err(|e| format!("Pobieranie modułów Dash przerwane: {e}"))?
+    {
+        file.write_all(&chunk)
+            .await
+            .map_err(|e| format!("Zapis modułów Dash nieudany: {e}"))?;
+    }
+    file.flush().await.ok();
+    drop(file);
+    fs::rename(&tmp, &dest).map_err(|e| format!("Nie można zainstalować modułów Dash: {e}"))?;
+    Ok(dest)
+}
+
 #[cfg(test)]
 mod java_tests {
     use super::*;
@@ -1354,6 +1420,24 @@ async fn launch_minecraft(options: LaunchOptions) -> Result<(), String> {
         args.push(options.width.to_string());
         args.push("--height".to_string());
         args.push(options.height.to_string());
+    }
+
+    // Moduły Dash (.java) przez javaagent — tylko wspierane wersje; brak agenta = vanilla.
+    // Nie przerywa startu gry: jak pobranie nie wyjdzie, leci czysty Minecraft.
+    if agent_supported(&options.version_id) {
+        match ensure_agent_jar().await {
+            Ok(jar) => {
+                let flag = format!(
+                    "-javaagent:{}={}",
+                    jar.to_string_lossy(),
+                    options.version_id
+                );
+                if let Some(i) = args.iter().position(|a| a == "-cp") {
+                    args.insert(i, flag);
+                }
+            }
+            Err(e) => eprintln!("[dash] moduły pominięte: {e}"),
+        }
     }
 
     // — Własny Minecraft: gameDir = DashClient/minecraft, nie systemowy .minecraft
